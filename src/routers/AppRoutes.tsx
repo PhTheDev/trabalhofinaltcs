@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getSession } from '../services/authService';
 import { Login } from '../pages/Login';
 import { AdminDashboard } from '../pages/AdminDashboard';
@@ -34,7 +34,7 @@ const ProtectedRoute: React.FC<ProtectedProps> = ({ children, allowedRole }) => 
 
 export const AppRoutes: React.FC = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         {/* Rota pública: Login/Cadastro */}
         <Route path="/" element={<Login />} />
@@ -68,6 +68,6 @@ export const AppRoutes: React.FC = () => {
         {/* Fallback de rotas desconhecidas */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
