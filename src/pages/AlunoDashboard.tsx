@@ -5,12 +5,15 @@ import { getSession } from '../services/authService';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { usuarioService } from '../services/usuarioService';
-import { byId, saveDb, counters, nowIso } from '../services/dbService';
 import type { ICurso } from '../types';
+
+export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
 
 export const AlunoDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const dbState = useDb();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+  const dbState = useDb(refreshTrigger);
 
   // Obter sessão
   const session = getSession();
@@ -75,43 +78,50 @@ export const AlunoDashboard: React.FC = () => {
     }
   };
 
-  const handleConfirmarCompra = () => {
+  const handleConfirmarCompra = async () => {
     if (!selectedCurso || !userId) return;
 
     const preco = Number(selectedCurso.preco) || 0;
 
-    // 1. Matrícula
-    usuarioService.matricular(userId, selectedCurso.id);
+    try {
+      // 1. Matrícula
+      await usuarioService.matricular(userId, selectedCurso.id);
 
-    // 2. Pagamento
-    if (preco > 0) {
-      dbState.pagamentos.push({
-        id: counters.pagamento++,
-        idAssinatura: null,
-        valorPago: preco,
-        dataPagamento: nowIso(),
-        metodoPagamento: paymentMethod,
-        idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
-      });
-      saveDb();
+      // 2. Pagamento
+      if (preco > 0) {
+        await fetch('http://localhost:3000/pagamentos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idAssinatura: null,
+            valorPago: preco,
+            dataPagamento: new Date().toISOString(),
+            metodoPagamento: paymentMethod,
+            idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
+          })
+        });
+      }
+
+      // Fecha modal
+      const modalEl = document.getElementById('checkoutModal');
+      if (modalEl) {
+        const bootstrap = (window as any).bootstrap;
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal?.hide();
+      }
+
+      // Feedback
+      showToast(
+        preco > 0
+          ? `Compra realizada! ${formatPreco(preco)} via ${paymentMethod}`
+          : 'Inscrição confirmada!'
+      );
+
+      setSelectedCurso(null);
+      triggerRefresh();
+    } catch (e: any) {
+      showToast('Erro ao processar compra/matrícula.');
     }
-
-    // Fecha modal
-    const modalEl = document.getElementById('checkoutModal');
-    if (modalEl) {
-      const bootstrap = (window as any).bootstrap;
-      const modal = bootstrap.Modal.getInstance(modalEl);
-      modal?.hide();
-    }
-
-    // Feedback
-    showToast(
-      preco > 0
-        ? `Compra realizada! ${formatPreco(preco)} via ${paymentMethod}`
-        : 'Inscrição confirmada!'
-    );
-
-    setSelectedCurso(null);
   };
 
   return (

@@ -102,32 +102,11 @@ export interface IPagamento {
   idTransacaoGateway: string;
 }
 
-export interface IDbState {
-  usuarios: IUsuario[];
-  categorias: ICategoria[];
-  cursos: ICurso[];
-  modulos: IModulo[];
-  aulas: IAula[];
-  matriculas: IMatricula[];
-  progressoAulas: IProgressoAula[];
-  trilhas: ITrilha[];
-  trilhasCursos: ITrilhaCurso[];
-  certificados: ICertificado[];
-  planos: IPlano[];
-  assinaturas: IAssinatura[];
-  pagamentos: IPagamento[];
-}
-
-export interface ICounters {
-  usuario: number;
-  categoria: number;
-  curso: number;
-  modulo: number;
-  aula: number;
-  matricula: number;
-  trilha: number;
-  certificado: number;
-  plano: number;
-  assinatura: number;
-  pagamento: number;
+export interface IAvaliacao {
+  id: number;
+  idUsuario: number;
+  idCurso: number;
+  nota: number; // 1 a 5
+  comentario: string | null;
+  dataAvaliacao: string;
 }

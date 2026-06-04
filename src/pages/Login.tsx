@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { login, cadastrarAluno, getSession } from '../services/authService';
-import { seedData } from '../services/seed';
-
-// Esquemas de Validação com Zod
+import { login, cadastrarAluno, getSession } from '../services/authService';// Esquemas de Validação com Zod
 const loginSchema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('Digite um e-mail válido'),
   senha: z.string().min(3, 'A senha deve ter pelo menos 3 caracteres')
@@ -21,7 +18,6 @@ export const Login: React.FC = () => {
 
   // Se já há sessão ativa, redireciona direto
   useEffect(() => {
-    seedData(); // Executa o seed inicial de demonstração
     const session = getSession();
     if (session) {
       navigate(session.role === 'admin' ? '/admin' : '/aluno');
@@ -78,7 +74,7 @@ export const Login: React.FC = () => {
     // Simula atraso estético original
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    const result = login(loginEmail, loginSenha);
+    const result = await login(loginEmail, loginSenha);
     setLoading(false);
 
     if (!result.ok || !result.usuario) {
@@ -111,7 +107,7 @@ export const Login: React.FC = () => {
     // Simula atraso estético original
     await new Promise(resolve => setTimeout(resolve, 700));
 
-    const result = cadastrarAluno(cadastroNome, cadastroEmail, cadastroSenha);
+    const result = await cadastrarAluno(cadastroNome, cadastroEmail, cadastroSenha);
     setLoading(false);
 
     if (!result.ok || !result.usuario) {

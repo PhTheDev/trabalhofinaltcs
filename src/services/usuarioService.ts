@@ -1,79 +1,93 @@
-import { db, counters, nowIso, passwordHash, saveDb } from './dbService';
 import type { IUsuario, IMatricula, IProgressoAula, ICertificado } from '../types';
+import { passwordHash } from './authService';
+
+const API_URL = 'http://localhost:3000';
 
 export class UsuarioService {
-  salvar(nomeCompleto: string, email: string, senha: string): IUsuario {
-    if (db.usuarios.some((u: IUsuario) => u.email.toLowerCase() === email.toLowerCase())) {
+  async salvar(nomeCompleto: string, email: string, senha: string): Promise<IUsuario> {
+    const resVerifica = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}`);
+    const usuarios = await resVerifica.json();
+    if (usuarios.length > 0) {
       throw new Error('E-mail já cadastrado.');
     }
-    const u: IUsuario = {
-      id: counters.usuario++,
-      nomeCompleto,
-      email,
-      senhaHash: passwordHash(senha),
-      dataCadastro: nowIso(),
-      role: 'aluno'
-    };
-    db.usuarios.push(u);
-    saveDb();
-    return u;
+    const res = await fetch(`${API_URL}/usuarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nomeCompleto,
+        email,
+        senhaHash: passwordHash(senha),
+        dataCadastro: new Date().toISOString(),
+        role: 'aluno'
+      })
+    });
+    return res.json();
   }
 
-  matricular(idUsuario: number, idCurso: number): IMatricula {
-    const existente = db.matriculas.find(
-      (m: IMatricula) => String(m.idUsuario) === String(idUsuario) && String(m.idCurso) === String(idCurso)
-    );
-    if (existente) return existente;
+  async matricular(idUsuario: number, idCurso: number): Promise<IMatricula> {
+    const resVerifica = await fetch(`${API_URL}/matriculas?idUsuario=${idUsuario}&idCurso=${idCurso}`);
+    const matriculas = await resVerifica.json();
+    if (matriculas.length > 0) return matriculas[0];
 
-    const m: IMatricula = {
-      id: counters.matricula++,
-      idUsuario,
-      idCurso,
-      dataMatricula: nowIso()
-    };
-    db.matriculas.push(m);
-    saveDb();
-    return m;
-  }
-
-  atualizarProgresso(idUsuario: number, idAula: number, status: 'Concluído' | 'Em andamento'): IProgressoAula {
-    const existente = db.progressoAulas.find(
-      (p: IProgressoAula) => String(p.idUsuario) === String(idUsuario) && String(p.idAula) === String(idAula)
-    );
-    if (existente) {
-      existente.status = status;
-      existente.dataConclusao = nowIso();
-      saveDb();
-      return existente;
-    } else {
-      const prog: IProgressoAula = {
+    const res = await fetch(`${API_URL}/matriculas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         idUsuario,
-        idAula,
-        dataConclusao: nowIso(),
-        status
-      };
-      db.progressoAulas.push(prog);
-      saveDb();
-      return prog;
+        idCurso,
+        dataMatricula: new Date().toISOString()
+      })
+    });
+    return res.json();
+  }
+
+  async listarMatriculas(idUsuario: number): Promise<IMatricula[]> {
+    const res = await fetch(`${API_URL}/matriculas?idUsuario=${idUsuario}`);
+    return res.json();
+  }
+
+  async atualizarProgresso(idUsuario: number, idAula: number, status: 'Concluído' | 'Em andamento'): Promise<IProgressoAula> {
+    const resVerifica = await fetch(`${API_URL}/progressoAulas?idUsuario=${idUsuario}&idAula=${idAula}`);
+    const progressos = await resVerifica.json();
+    if (progressos.length > 0) {
+      const existente = progressos[0];
+      const res = await fetch(`${API_URL}/progressoAulas/${existente.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, dataConclusao: new Date().toISOString() })
+      });
+      return res.json();
+    } else {
+      const res = await fetch(`${API_URL}/progressoAulas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idUsuario,
+          idAula,
+          dataConclusao: new Date().toISOString(),
+          status
+        })
+      });
+      return res.json();
     }
   }
 
-  emitirCertificado(idUsuario: number, idCurso: number): ICertificado {
-    const existente = db.certificados.find(
-      (c: ICertificado) => String(c.idUsuario) === String(idUsuario) && String(c.idCurso) === String(idCurso)
-    );
-    if (existente) return existente;
+  async emitirCertificado(idUsuario: number, idCurso: number): Promise<ICertificado> {
+    const resVerifica = await fetch(`${API_URL}/certificados?idUsuario=${idUsuario}&idCurso=${idCurso}`);
+    const certificados = await resVerifica.json();
+    if (certificados.length > 0) return certificados[0];
 
-    const cert: ICertificado = {
-      id: counters.certificado++,
-      idUsuario,
-      idCurso,
-      codigoAutenticidade: `CERT-${Date.now().toString(36).toUpperCase()}`,
-      dataEmissao: nowIso()
-    };
-    db.certificados.push(cert);
-    saveDb();
-    return cert;
+    const res = await fetch(`${API_URL}/certificados`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuario,
+        idCurso,
+        codigoAutenticidade: `CERT-${Date.now().toString(36).toUpperCase()}`,
+        dataEmissao: new Date().toISOString()
+      })
+    });
+    return res.json();
   }
 }
 

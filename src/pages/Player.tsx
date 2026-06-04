@@ -3,13 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDb } from '../hooks/useDb';
 import { getSession } from '../services/authService';
 import { usuarioService } from '../services/usuarioService';
-import { byId } from '../services/dbService';
 import type { IAula, IModulo, IProgressoAula } from '../types';
+
+export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
 
 export const Player: React.FC = () => {
   const { cursoId } = useParams<{ cursoId: string }>();
   const navigate = useNavigate();
-  const dbState = useDb();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+  const dbState = useDb(refreshTrigger);
 
   // Obter sessão
   const session = getSession();
@@ -55,9 +58,10 @@ export const Player: React.FC = () => {
     setAulaAtivaId(aulaId);
   };
 
-  const handleMarcarConcluida = () => {
+  const handleMarcarConcluida = async () => {
     if (aulaAtivaId && userId) {
-      usuarioService.atualizarProgresso(userId, aulaAtivaId, 'Concluído');
+      await usuarioService.atualizarProgresso(userId, aulaAtivaId, 'Concluído');
+      triggerRefresh();
     }
   };
 

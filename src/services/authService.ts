@@ -1,12 +1,16 @@
-import { db, counters, passwordHash, nowIso, saveDb } from './dbService';
 import type { IUsuario } from '../types';
 
+const API_URL = 'http://localhost:3000';
 const SESSION_KEY = 'ph_session';
 
 export interface ISession {
   id: number;
   nomeCompleto: string;
   role: 'aluno' | 'admin';
+}
+
+export function passwordHash(v: string) {
+  return btoa(unescape(encodeURIComponent(v)));
 }
 
 export function getSession(): ISession | null {
@@ -30,32 +34,48 @@ export function logout() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
-export function login(email: string, senha: string): { ok: boolean; usuario?: IUsuario; message?: string } {
+export async function login(email: string, senha: string): Promise<{ ok: boolean; usuario?: IUsuario; message?: string }> {
   const hash = passwordHash(senha);
-  const usuario = db.usuarios.find(
-    (u: IUsuario) => u.email.toLowerCase() === email.toLowerCase() && u.senhaHash === hash
-  );
-  if (!usuario) {
-    return { ok: false, message: 'E-mail ou senha incorretos.' };
+  try {
+    const res = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}&senhaHash=${encodeURIComponent(hash)}`);
+    const usuarios: IUsuario[] = await res.json();
+    if (usuarios.length === 0) {
+      return { ok: false, message: 'E-mail ou senha incorretos.' };
+    }
+    const usuario = usuarios[0];
+    setSession(usuario);
+    return { ok: true, usuario };
+  } catch (e) {
+    return { ok: false, message: 'Erro ao conectar com o servidor.' };
   }
-  setSession(usuario);
-  return { ok: true, usuario };
 }
 
-export function cadastrarAluno(nomeCompleto: string, email: string, senha: string): { ok: boolean; usuario?: IUsuario; message?: string } {
-  if (db.usuarios.some((u: IUsuario) => u.email.toLowerCase() === email.toLowerCase())) {
-    return { ok: false, message: 'E-mail já cadastrado.' };
+export async function cadastrarAluno(nomeCompleto: string, email: string, senha: string): Promise<{ ok: boolean; usuario?: IUsuario; message?: string }> {
+  try {
+    const resVerifica = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}`);
+    const usuarios = await resVerifica.json();
+    if (usuarios.length > 0) {
+      return { ok: false, message: 'E-mail já cadastrado.' };
+    }
+    
+    const u = {
+      nomeCompleto,
+      email,
+      senhaHash: passwordHash(senha),
+      dataCadastro: new Date().toISOString(),
+      role: 'aluno'
+    };
+    
+    const res = await fetch(`${API_URL}/usuarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(u)
+    });
+    
+    const novoUsuario: IUsuario = await res.json();
+    setSession(novoUsuario);
+    return { ok: true, usuario: novoUsuario };
+  } catch (e) {
+    return { ok: false, message: 'Erro ao conectar com o servidor.' };
   }
-  const u: IUsuario = {
-    id: counters.usuario++,
-    nomeCompleto,
-    email,
-    senhaHash: passwordHash(senha),
-    dataCadastro: nowIso(),
-    role: 'aluno'
-  };
-  db.usuarios.push(u);
-  saveDb();
-  setSession(u);
-  return { ok: true, usuario: u };
 }
