@@ -1,0 +1,94 @@
+{
+  "usuarios": [
+    {
+      "id": 1,
+      "nomeCompleto": "Admin",
+      "email": "admin@plataforma.com",
+      "senhaHash": "MDIwMg==",
+      "dataCadastro": "2023-01-01T00:00:00.000Z",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "nomeCompleto": "Aluno",
+      "email": "aluno@plataforma.com",
+      "senhaHash": "MDIwMg==",
+      "dataCadastro": "2023-01-01T00:00:00.000Z",
+      "role": "aluno"
+    }
+  ],
+  "categorias": [
+    {
+      "id": 1,
+      "nome": "Programação",
+      "descricao": "Cursos de desenvolvimento web"
+    }
+  ],
+  "cursos": [
+    {
+      "id": 1,
+      "titulo": "JavaScript Essencial",
+      "descricao": "Aprenda os fundamentos do JavaScript moderno para desenvolvimento web.",
+      "idInstrutor": 1,
+      "idCategoria": 1,
+      "nivel": "Iniciante",
+      "dataPublicacao": "2023-01-01",
+      "totalHoras": 10,
+      "preco": 49.9
+    },
+    {
+      "id": 2,
+      "titulo": "HTML & CSS para Iniciantes",
+      "descricao": "Construa suas primeiras páginas web do zero com HTML5 e CSS3.",
+      "idInstrutor": 1,
+      "idCategoria": 1,
+      "nivel": "Iniciante",
+      "dataPublicacao": "2023-01-01",
+      "totalHoras": 8,
+      "preco": 0
+    }
+  ],
+  "modulos": [
+    {
+      "id": 1,
+      "idCurso": 1,
+      "titulo": "Introdução ao JavaScript",
+      "ordem": 1
+    },
+    {
+      "id": 2,
+      "idCurso": 2,
+      "titulo": "Estrutura HTML",
+      "ordem": 1
+    }
+  ],
+  "aulas": [
+    {
+      "id": 1,
+      "idModulo": 1,
+      "titulo": "Primeiros Passos com JS",
+      "tipoConteudo": "Vídeo",
+      "urlConteudo": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      "duracaoMinutos": 10,
+      "ordem": 1
+    },
+    {
+      "id": 2,
+      "idModulo": 2,
+      "titulo": "Tags Essenciais do HTML",
+      "tipoConteudo": "Vídeo",
+      "urlConteudo": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      "duracaoMinutos": 12,
+      "ordem": 1
+    }
+  ],
+  "matriculas": [],
+  "progressoAulas": [],
+  "avaliacoes": [],
+  "trilhas": [],
+  "trilhasCursos": [],
+  "certificados": [],
+  "planos": [],
+  "assinaturas": [],
+  "pagamentos": []
+}

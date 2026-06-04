@@ -1,48 +1,58 @@
-import { db, counters, nowIso, byId, saveDb } from './dbService';
 import type { IPlano, IAssinatura, IPagamento } from '../types';
 
+const API_URL = 'http://localhost:3000';
+
 export class FinanceiroService {
-  salvarPlano(nome: string, descricao: string, preco: number, duracaoMeses: number): IPlano {
-    const plano: IPlano = {
-      id: counters.plano++,
-      nome,
-      descricao,
-      preco,
-      duracaoMeses
-    };
-    db.planos.push(plano);
-    saveDb();
-    return plano;
+  async salvarPlano(nome: string, descricao: string, preco: number, duracaoMeses: number): Promise<IPlano> {
+    const res = await fetch(`${API_URL}/planos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, descricao, preco, duracaoMeses })
+    });
+    return res.json();
   }
 
-  checkout(idUsuario: number, idPlano: number, metodoPagamento: 'PIX' | 'Cartão' | 'Boleto') {
-    const plano = byId(db.planos, idPlano);
-    if (!plano) throw new Error('Plano inválido.');
+  async listarPlanos(): Promise<IPlano[]> {
+    const res = await fetch(`${API_URL}/planos`);
+    return res.json();
+  }
+
+  async checkout(idUsuario: number, idPlano: number, metodoPagamento: 'PIX' | 'Cartão' | 'Boleto'): Promise<{ assinatura: IAssinatura, pagamento: IPagamento }> {
+    const resPlano = await fetch(`${API_URL}/planos/${idPlano}`);
+    if (!resPlano.ok) throw new Error('Plano inválido.');
+    const plano: IPlano = await resPlano.json();
 
     const inicio = new Date();
     const fim = new Date(inicio);
     fim.setMonth(fim.getMonth() + plano.duracaoMeses);
 
-    const assinatura: IAssinatura = {
-      id: counters.assinatura++,
-      idUsuario,
-      idPlano,
-      dataInicio: inicio.toISOString(),
-      dataFim: fim.toISOString()
-    };
-    db.assinaturas.push(assinatura);
+    // Save Assinatura
+    const resAssinatura = await fetch(`${API_URL}/assinaturas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuario,
+        idPlano,
+        dataInicio: inicio.toISOString(),
+        dataFim: fim.toISOString()
+      })
+    });
+    const assinatura: IAssinatura = await resAssinatura.json();
 
-    const pagamento: IPagamento = {
-      id: counters.pagamento++,
-      idAssinatura: assinatura.id,
-      valorPago: plano.preco,
-      dataPagamento: nowIso(),
-      metodoPagamento,
-      idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
-    };
-    db.pagamentos.push(pagamento);
+    // Save Pagamento
+    const resPagamento = await fetch(`${API_URL}/pagamentos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idAssinatura: assinatura.id,
+        valorPago: plano.preco,
+        dataPagamento: new Date().toISOString(),
+        metodoPagamento,
+        idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
+      })
+    });
+    const pagamento: IPagamento = await resPagamento.json();
 
-    saveDb();
     return { assinatura, pagamento };
   }
 }

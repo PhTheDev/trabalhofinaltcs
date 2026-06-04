@@ -7,14 +7,17 @@ import { AcademicoService } from '../services/academicoService';
 import { ConteudoService } from '../services/conteudoService';
 import { usuarioService } from '../services/usuarioService';
 import { financeiroService } from '../services/financeiroService';
-import { clearDb, byId, formatDate } from '../services/dbService';
+export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
+export const formatDate = (iso: string) => new Date(iso).toLocaleString('pt-BR');
 import type { ICertificado } from '../types';
 
 const acadSvc = new AcademicoService();
 const contSvc = new ConteudoService();
 
 export const AdminDashboard: React.FC = () => {
-  const dbState = useDb();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+  const dbState = useDb(refreshTrigger);
 
   // Obter sessão
   const session = getSession();
@@ -113,25 +116,26 @@ export const AdminDashboard: React.FC = () => {
 
   // ── SUBMITS DOS FORMULÁRIOS ───────────────────────────────────────────
 
-  const handleSalvarCategoria = (e: React.FormEvent) => {
+  const handleSalvarCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!catNome) return showError('O nome da categoria é obrigatório.');
     try {
-      acadSvc.salvarCategoria(catNome.trim(), catDescricao.trim());
+      await acadSvc.salvarCategoria(catNome.trim(), catDescricao.trim());
       setCatNome('');
       setCatDescricao('');
       showToast('Categoria cadastrada com sucesso.');
+      triggerRefresh();
     } catch (err: any) {
       showError(err.message);
     }
   };
 
-  const handleSalvarCurso = (e: React.FormEvent) => {
+  const handleSalvarCurso = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cursoTitulo || !cursoInstrutorId || !cursoCategoriaId) {
       return showError('Preencha os campos obrigatórios do curso.');
     }
-    acadSvc.salvarCurso({
+    await acadSvc.salvarCurso({
       titulo: cursoTitulo.trim(),
       descricao: cursoDescricao.trim(),
       idInstrutor: Number(cursoInstrutorId),
@@ -149,50 +153,54 @@ export const AdminDashboard: React.FC = () => {
     setCursoHoras('');
     setCursoPreco('');
     showToast('Curso cadastrado com sucesso.');
+    triggerRefresh();
   };
 
-  const handleFiltrarCursos = () => {
+  const handleFiltrarCursos = async () => {
     if (!filtroCatId) return showError('Selecione uma categoria para filtrar.');
-    const result = acadSvc.listarCursosPorCategoria(filtroCatId);
+    const result = await acadSvc.listarCursosPorCategoria(filtroCatId);
     setCursosFiltrados(result);
   };
 
-  const handleSalvarTrilha = (e: React.FormEvent) => {
+  const handleSalvarTrilha = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trilhaTitulo || !trilhaCatId) return showError('Preencha os campos obrigatórios da trilha.');
-    acadSvc.salvarTrilha(trilhaTitulo.trim(), trilhaDescricao.trim(), Number(trilhaCatId));
+    await acadSvc.salvarTrilha(trilhaTitulo.trim(), trilhaDescricao.trim(), Number(trilhaCatId));
     setTrilhaTitulo('');
     setTrilhaDescricao('');
     setTrilhaCatId('');
     showToast('Trilha cadastrada com sucesso.');
+    triggerRefresh();
   };
 
-  const handleAssociarCursoTrilha = (e: React.FormEvent) => {
+  const handleAssociarCursoTrilha = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assocTrilhaId || !assocCursoId || !assocOrdem) return showError('Preencha os campos obrigatórios da associação.');
-    acadSvc.associarCursoTrilha(Number(assocTrilhaId), Number(assocCursoId), Number(assocOrdem));
+    await acadSvc.associarCursoTrilha(Number(assocTrilhaId), Number(assocCursoId), Number(assocOrdem));
     setAssocTrilhaId('');
     setAssocCursoId('');
     setAssocOrdem('');
     showToast('Curso associado à trilha.');
+    triggerRefresh();
   };
 
-  const handleSalvarModulo = (e: React.FormEvent) => {
+  const handleSalvarModulo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modCursoId || !modTitulo || !modOrdem) return showError('Preencha os campos obrigatórios do módulo.');
-    contSvc.salvarModulo(Number(modCursoId), modTitulo.trim(), Number(modOrdem));
+    await contSvc.salvarModulo(Number(modCursoId), modTitulo.trim(), Number(modOrdem));
     setModCursoId('');
     setModTitulo('');
     setModOrdem('');
     showToast('Módulo adicionado.');
+    triggerRefresh();
   };
 
-  const handleSalvarAula = (e: React.FormEvent) => {
+  const handleSalvarAula = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!aulaModuloId || !aulaTitulo || !aulaOrdem || !aulaDuracao || !aulaUrl) {
       return showError('Preencha os campos obrigatórios da aula.');
     }
-    contSvc.salvarAula(
+    await contSvc.salvarAula(
       Number(aulaModuloId),
       aulaTitulo.trim(),
       aulaTipo,
@@ -207,53 +215,58 @@ export const AdminDashboard: React.FC = () => {
     setAulaDuracao('');
     setAulaUrl('');
     showToast('Aula adicionada.');
+    triggerRefresh();
   };
 
-  const handleCadastrarUsuario = (e: React.FormEvent) => {
+  const handleCadastrarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uNome || !uEmail || !uSenha) return showError('Preencha todos os campos obrigatórios.');
     try {
-      usuarioService.salvar(uNome.trim(), uEmail.trim(), uSenha);
+      await usuarioService.salvar(uNome.trim(), uEmail.trim(), uSenha);
       setUNome('');
       setUEmail('');
       setUSenha('');
       showToast('Usuário cadastrado com sucesso.');
+      triggerRefresh();
     } catch (err: any) {
       showError(err.message);
     }
   };
 
-  const handleMatricular = (e: React.FormEvent) => {
+  const handleMatricular = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!matUsuarioId || !matCursoId) return showError('Selecione usuário e curso.');
-    usuarioService.matricular(Number(matUsuarioId), Number(matCursoId));
+    await usuarioService.matricular(Number(matUsuarioId), Number(matCursoId));
     setMatUsuarioId('');
     setMatCursoId('');
     showToast('Usuário matriculado no curso.');
+    triggerRefresh();
   };
 
-  const handleAtualizarProgresso = (e: React.FormEvent) => {
+  const handleAtualizarProgresso = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!progUsuarioId || !progAulaId) return showError('Selecione usuário e aula.');
-    usuarioService.atualizarProgresso(Number(progUsuarioId), Number(progAulaId), progStatus);
+    await usuarioService.atualizarProgresso(Number(progUsuarioId), Number(progAulaId), progStatus);
     setProgUsuarioId('');
     setProgAulaId('');
     setProgStatus('Concluído');
     showToast('Progresso de aula atualizado.');
+    triggerRefresh();
   };
 
-  const handleEmitirCertificado = (e: React.FormEvent) => {
+  const handleEmitirCertificado = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!certUsuarioId || !certCursoId) return showError('Selecione usuário e curso.');
-    const cert = usuarioService.emitirCertificado(Number(certUsuarioId), Number(certCursoId));
+    const cert = await usuarioService.emitirCertificado(Number(certUsuarioId), Number(certCursoId));
     setEmitidoCert(cert);
     showToast('Certificado emitido!');
+    triggerRefresh();
   };
 
-  const handleSalvarPlano = (e: React.FormEvent) => {
+  const handleSalvarPlano = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!planoNome || !planoPreco || !planoDuracao) return showError('Preencha os campos obrigatórios do plano.');
-    financeiroService.salvarPlano(
+    await financeiroService.salvarPlano(
       planoNome.trim(),
       planoDescricao.trim(),
       Number(planoPreco),
@@ -264,13 +277,14 @@ export const AdminDashboard: React.FC = () => {
     setPlanoPreco('');
     setPlanoDuracao('');
     showToast('Plano cadastrado.');
+    triggerRefresh();
   };
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkoutUsuarioId || !checkoutPlanoId) return showError('Selecione usuário e plano.');
     try {
-      financeiroService.checkout(
+      await financeiroService.checkout(
         Number(checkoutUsuarioId),
         Number(checkoutPlanoId),
         checkoutMetodo
@@ -279,6 +293,7 @@ export const AdminDashboard: React.FC = () => {
       setCheckoutPlanoId('');
       setCheckoutMetodo('PIX');
       showToast('Checkout concluído e pagamento registrado.');
+      triggerRefresh();
     } catch (err: any) {
       showError(err.message);
     }
@@ -328,19 +343,6 @@ export const AdminDashboard: React.FC = () => {
                   <span>{totalAulas}</span> aulas
                 </div>
               </div>
-              <button
-                onClick={clearDb}
-                className="btn btn-sm"
-                style={{
-                  border: '1px solid rgba(248,113,113,0.4)',
-                  color: '#f87171',
-                  background: 'rgba(127,29,29,0.2)',
-                  fontSize: '0.78rem'
-                }}
-                title="Remove todos os dados e recarrega a página"
-              >
-                <i className="bi bi-trash me-1"></i>Limpar todos os dados
-              </button>
             </div>
           </div>
         </header>
@@ -846,7 +848,13 @@ export const AdminDashboard: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {contSvc.listarConteudo().flatMap(group => {
+                            {dbState.modulos.map(modulo => {
+                              const curso = byId(dbState.cursos, modulo.idCurso);
+                              const aulas = dbState.aulas
+                                .filter(a => String(a.idModulo) === String(modulo.id))
+                                .sort((a, b) => a.ordem - b.ordem);
+                              return { modulo, curso, aulas };
+                            }).flatMap((group: any) => {
                               if (group.aulas.length === 0) {
                                 return [
                                   <tr key={`mod-${group.modulo.id}`}>
@@ -856,7 +864,7 @@ export const AdminDashboard: React.FC = () => {
                                   </tr>
                                 ];
                               }
-                              return group.aulas.map((aula, index) => (
+                              return group.aulas.map((aula: any, index: number) => (
                                 <tr key={aula.id}>
                                   {index === 0 ? (
                                     <td rowSpan={group.aulas.length}>{group.curso?.titulo || '—'}</td>

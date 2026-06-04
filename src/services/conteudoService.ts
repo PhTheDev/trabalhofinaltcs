@@ -1,50 +1,63 @@
-import { db, counters, saveDb } from './dbService';
 import type { IModulo, IAula, ICurso } from '../types';
 
+const API_URL = 'http://localhost:3000';
+
 export class ConteudoService {
-  salvarModulo(idCurso: number, titulo: string, ordem: number): IModulo {
-    const modulo: IModulo = {
-      id: counters.modulo++,
-      idCurso,
-      titulo,
-      ordem
-    };
-    db.modulos.push(modulo);
-    saveDb();
-    return modulo;
+  async salvarModulo(idCurso: number, titulo: string, ordem: number): Promise<IModulo> {
+    const res = await fetch(`${API_URL}/modulos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idCurso, titulo, ordem })
+    });
+    return res.json();
   }
 
-  salvarAula(
+  async salvarAula(
     idModulo: number,
     titulo: string,
     tipoConteudo: 'Vídeo' | 'Texto' | 'Quiz',
     urlConteudo: string,
     duracaoMinutos: number,
     ordem: number
-  ): IAula {
-    const aula: IAula = {
-      id: counters.aula++,
-      idModulo,
-      titulo,
-      tipoConteudo,
-      urlConteudo,
-      duracaoMinutos,
-      ordem
-    };
-    db.aulas.push(aula);
-    saveDb();
-    return aula;
+  ): Promise<IAula> {
+    const res = await fetch(`${API_URL}/aulas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idModulo,
+        titulo,
+        tipoConteudo,
+        urlConteudo,
+        duracaoMinutos,
+        ordem
+      })
+    });
+    return res.json();
   }
 
-  listarConteudo() {
-    return [...db.modulos]
-      .sort((a: IModulo, b: IModulo) => a.ordem - b.ordem)
-      .map((modulo: IModulo) => ({
-        modulo,
-        curso: db.cursos.find((c: ICurso) => String(c.id) === String(modulo.idCurso)),
-        aulas: db.aulas
-          .filter((a: IAula) => String(a.idModulo) === String(modulo.id))
-          .sort((a: IAula, b: IAula) => a.ordem - b.ordem)
-      }));
+  async listarModulos(): Promise<IModulo[]> {
+    const res = await fetch(`${API_URL}/modulos?_sort=ordem`);
+    return res.json();
+  }
+
+  async listarAulas(idModulo?: number): Promise<IAula[]> {
+    const url = idModulo 
+      ? `${API_URL}/aulas?idModulo=${idModulo}&_sort=ordem`
+      : `${API_URL}/aulas?_sort=ordem`;
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  async listarConteudo() {
+    const modulos = await this.listarModulos();
+    const aulas = await this.listarAulas();
+    const cursosRes = await fetch(`${API_URL}/cursos`);
+    const cursos: ICurso[] = await cursosRes.json();
+
+    return modulos.map(modulo => ({
+      modulo,
+      curso: cursos.find((c: ICurso) => String(c.id) === String(modulo.idCurso)),
+      aulas: aulas.filter((a: IAula) => String(a.idModulo) === String(modulo.id))
+    }));
   }
 }

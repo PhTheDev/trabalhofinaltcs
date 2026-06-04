@@ -1,55 +1,66 @@
-import { db, counters, saveDb } from './dbService';
 import type { ICategoria, ICurso, ITrilha, ITrilhaCurso } from '../types';
 
+const API_URL = 'http://localhost:3000';
+
 export class AcademicoService {
-  salvarCategoria(nome: string, descricao: string): ICategoria {
-    if (db.categorias.some((c: ICategoria) => c.nome.toLowerCase() === nome.toLowerCase())) {
+  async salvarCategoria(nome: string, descricao: string): Promise<ICategoria> {
+    const resVerifica = await fetch(`${API_URL}/categorias?nome=${encodeURIComponent(nome)}`);
+    const categorias = await resVerifica.json();
+    if (categorias.length > 0) {
       throw new Error('Categoria já existe.');
     }
-    const cat: ICategoria = {
-      id: counters.categoria++,
-      nome,
-      descricao
-    };
-    db.categorias.push(cat);
-    saveDb();
-    return cat;
+    const res = await fetch(`${API_URL}/categorias`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, descricao })
+    });
+    return res.json();
   }
 
-  salvarCurso(cursoData: Omit<ICurso, 'id'>): ICurso {
-    const curso: ICurso = {
-      id: counters.curso++,
-      ...cursoData
-    };
-    db.cursos.push(curso);
-    saveDb();
-    return curso;
+  async salvarCurso(cursoData: Omit<ICurso, 'id'>): Promise<ICurso> {
+    const res = await fetch(`${API_URL}/cursos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cursoData)
+    });
+    return res.json();
   }
 
-  listarCursosPorCategoria(categoriaId: number | string): ICurso[] {
-    return db.cursos.filter((c: ICurso) => String(c.idCategoria) === String(categoriaId));
+  async listarCursosPorCategoria(categoriaId: number | string): Promise<ICurso[]> {
+    const res = await fetch(`${API_URL}/cursos?idCategoria=${categoriaId}`);
+    return res.json();
   }
 
-  salvarTrilha(titulo: string, descricao: string, idCategoria: number): ITrilha {
-    const trilha: ITrilha = {
-      id: counters.trilha++,
-      titulo,
-      descricao,
-      idCategoria
-    };
-    db.trilhas.push(trilha);
-    saveDb();
-    return trilha;
+  async listarCursos(): Promise<ICurso[]> {
+    const res = await fetch(`${API_URL}/cursos`);
+    return res.json();
   }
 
-  associarCursoTrilha(idTrilha: number, idCurso: number, ordem: number): ITrilhaCurso {
-    const assoc: ITrilhaCurso = { idTrilha, idCurso, ordem };
-    db.trilhasCursos.push(assoc);
-    saveDb();
-    return assoc;
+  async listarCategorias(): Promise<ICategoria[]> {
+    const res = await fetch(`${API_URL}/categorias`);
+    return res.json();
   }
 
-  listarTrilhaCursos(): ITrilhaCurso[] {
-    return [...db.trilhasCursos].sort((a: ITrilhaCurso, b: ITrilhaCurso) => a.ordem - b.ordem);
+  async salvarTrilha(titulo: string, descricao: string, idCategoria: number): Promise<ITrilha> {
+    const res = await fetch(`${API_URL}/trilhas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo, descricao, idCategoria })
+    });
+    return res.json();
+  }
+
+  async associarCursoTrilha(idTrilha: number, idCurso: number, ordem: number): Promise<ITrilhaCurso> {
+    const res = await fetch(`${API_URL}/trilhasCursos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idTrilha, idCurso, ordem })
+    });
+    return res.json();
+  }
+
+  async listarTrilhaCursos(): Promise<ITrilhaCurso[]> {
+    const res = await fetch(`${API_URL}/trilhasCursos?_sort=ordem`);
+    return res.json();
   }
 }
