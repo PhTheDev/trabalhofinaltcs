@@ -1,7 +1,7 @@
 import type { IUsuario, IMatricula, IProgressoAula, ICertificado } from '../types';
 import { passwordHash } from './authService';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config';
 
 export class UsuarioService {
   async salvar(nomeCompleto: string, email: string, senha: string): Promise<IUsuario> {

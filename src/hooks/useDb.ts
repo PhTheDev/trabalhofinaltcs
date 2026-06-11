@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { IUsuario, ICategoria, ICurso, IModulo, IAula, IMatricula, IProgressoAula, ITrilha, ITrilhaCurso, ICertificado, IPlano, IAssinatura, IPagamento } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config';
 
 export interface IDbState {
   usuarios: IUsuario[];

@@ -1,6 +1,6 @@
 import type { ICategoria, ICurso, ITrilha, ITrilhaCurso } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config';
 
 export class AcademicoService {
   async salvarCategoria(nome: string, descricao: string): Promise<ICategoria> {

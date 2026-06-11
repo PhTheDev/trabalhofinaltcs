@@ -6,6 +6,7 @@ import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { usuarioService } from '../services/usuarioService';
 import type { ICurso } from '../types';
+import { API_URL } from '../config';
 
 export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
 
@@ -89,7 +90,7 @@ export const AlunoDashboard: React.FC = () => {
 
       // 2. Pagamento
       if (preco > 0) {
-        await fetch('http://localhost:3000/pagamentos', {
+        await fetch(`${API_URL}/pagamentos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,6 +1,6 @@
 import type { IPlano, IAssinatura, IPagamento } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config';
 
 export class FinanceiroService {
   async salvarPlano(nome: string, descricao: string, preco: number, duracaoMeses: number): Promise<IPlano> {

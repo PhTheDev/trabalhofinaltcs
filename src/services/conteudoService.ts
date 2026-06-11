@@ -1,6 +1,6 @@
 import type { IModulo, IAula, ICurso } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config';
 
 export class ConteudoService {
   async salvarModulo(idCurso: number, titulo: string, ordem: number): Promise<IModulo> {
