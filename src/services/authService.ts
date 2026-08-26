@@ -1,16 +1,13 @@
 import type { IUsuario } from '../types';
+import { apiRequest } from '../lib/api';
+import { mapUsuario } from '../lib/mappers';
 
-const API_URL = 'http://localhost:3000';
 const SESSION_KEY = 'ph_session';
 
 export interface ISession {
   id: number;
   nomeCompleto: string;
   role: 'aluno' | 'admin';
-}
-
-export function passwordHash(v: string) {
-  return btoa(unescape(encodeURIComponent(v)));
 }
 
 export function getSession(): ISession | null {
@@ -35,47 +32,39 @@ export function logout() {
 }
 
 export async function login(email: string, senha: string): Promise<{ ok: boolean; usuario?: IUsuario; message?: string }> {
-  const hash = passwordHash(senha);
   try {
-    const res = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}&senhaHash=${encodeURIComponent(hash)}`);
-    const usuarios: IUsuario[] = await res.json();
-    if (usuarios.length === 0) {
-      return { ok: false, message: 'E-mail ou senha incorretos.' };
-    }
-    const usuario = usuarios[0];
+    const raw = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, senha }),
+    });
+    const usuario = mapUsuario(raw);
     setSession(usuario);
     return { ok: true, usuario };
   } catch (e) {
-    return { ok: false, message: 'Erro ao conectar com o servidor.' };
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : 'Erro ao conectar com o servidor.',
+    };
   }
 }
 
 export async function cadastrarAluno(nomeCompleto: string, email: string, senha: string): Promise<{ ok: boolean; usuario?: IUsuario; message?: string }> {
   try {
-    const resVerifica = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}`);
-    const usuarios = await resVerifica.json();
-    if (usuarios.length > 0) {
-      return { ok: false, message: 'E-mail já cadastrado.' };
-    }
-    
-    const u = {
-      nomeCompleto,
-      email,
-      senhaHash: passwordHash(senha),
-      dataCadastro: new Date().toISOString(),
-      role: 'aluno'
-    };
-    
-    const res = await fetch(`${API_URL}/usuarios`, {
+    const raw = await apiRequest('/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(u)
+      body: JSON.stringify({
+        nome: nomeCompleto,
+        email,
+        senha,
+      }),
     });
-    
-    const novoUsuario: IUsuario = await res.json();
-    setSession(novoUsuario);
-    return { ok: true, usuario: novoUsuario };
+    const usuario = mapUsuario(raw);
+    setSession(usuario);
+    return { ok: true, usuario };
   } catch (e) {
-    return { ok: false, message: 'Erro ao conectar com o servidor.' };
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : 'Erro ao conectar com o servidor.',
+    };
   }
 }

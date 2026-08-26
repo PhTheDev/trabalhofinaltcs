@@ -20,7 +20,7 @@ export const Footer: React.FC<FooterProps> = ({ isAdmin }) => {
           <div className="col-12 col-md-4">
             <nav aria-label="Rodapé">
               <ul className="footer-nav">
-                <li><Link to="/admin">Painel Admin</Link></li>
+                {isAdmin && <li><Link to="/admin">Painel Admin</Link></li>}
                 <li><Link to="/aluno">Área Aluno</Link></li>
               </ul>
             </nav>

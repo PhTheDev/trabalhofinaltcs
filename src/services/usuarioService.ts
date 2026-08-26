@@ -1,93 +1,90 @@
 import type { IUsuario, IMatricula, IProgressoAula, ICertificado } from '../types';
-import { passwordHash } from './authService';
-
-const API_URL = 'http://localhost:3000';
+import { apiList, apiRequest } from '../lib/api';
+import {
+  mapCertificado,
+  mapMatricula,
+  mapProgresso,
+  mapUsuario,
+  toProgressoStatus,
+} from '../lib/mappers';
 
 export class UsuarioService {
   async salvar(nomeCompleto: string, email: string, senha: string): Promise<IUsuario> {
-    const resVerifica = await fetch(`${API_URL}/usuarios?email=${encodeURIComponent(email)}`);
-    const usuarios = await resVerifica.json();
-    if (usuarios.length > 0) {
-      throw new Error('E-mail já cadastrado.');
-    }
-    const res = await fetch(`${API_URL}/usuarios`, {
+    const raw = await apiRequest('/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nomeCompleto,
-        email,
-        senhaHash: passwordHash(senha),
-        dataCadastro: new Date().toISOString(),
-        role: 'aluno'
-      })
+      body: JSON.stringify({ nome: nomeCompleto, email, senha }),
     });
-    return res.json();
+    return mapUsuario(raw);
   }
 
   async matricular(idUsuario: number, idCurso: number): Promise<IMatricula> {
-    const resVerifica = await fetch(`${API_URL}/matriculas?idUsuario=${idUsuario}&idCurso=${idCurso}`);
-    const matriculas = await resVerifica.json();
-    if (matriculas.length > 0) return matriculas[0];
+    const matriculas = (await apiList('/matriculas')).map(mapMatricula);
+    const existente = matriculas.find(
+      (item) => item.idUsuario === idUsuario && item.idCurso === idCurso,
+    );
+    if (existente) return existente;
 
-    const res = await fetch(`${API_URL}/matriculas`, {
+    const raw = await apiRequest('/matriculas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idUsuario,
         idCurso,
-        dataMatricula: new Date().toISOString()
-      })
+        dataMatricula: new Date().toISOString(),
+      }),
     });
-    return res.json();
+    return mapMatricula(raw);
   }
 
   async listarMatriculas(idUsuario: number): Promise<IMatricula[]> {
-    const res = await fetch(`${API_URL}/matriculas?idUsuario=${idUsuario}`);
-    return res.json();
+    const matriculas = (await apiList('/matriculas')).map(mapMatricula);
+    return matriculas.filter((item) => item.idUsuario === idUsuario);
   }
 
-  async atualizarProgresso(idUsuario: number, idAula: number, status: 'Concluído' | 'Em andamento'): Promise<IProgressoAula> {
-    const resVerifica = await fetch(`${API_URL}/progressoAulas?idUsuario=${idUsuario}&idAula=${idAula}`);
-    const progressos = await resVerifica.json();
-    if (progressos.length > 0) {
-      const existente = progressos[0];
-      const res = await fetch(`${API_URL}/progressoAulas/${existente.id}`, {
+  async atualizarProgresso(
+    idUsuario: number,
+    idAula: number,
+    status: 'Concluído' | 'Em andamento',
+  ): Promise<IProgressoAula> {
+    const payload = {
+      status: toProgressoStatus(status),
+      dataConclusao: new Date().toISOString(),
+    };
+
+    try {
+      const raw = await apiRequest(`/progresso-aula/${idUsuario}/${idAula}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, dataConclusao: new Date().toISOString() })
+        body: JSON.stringify(payload),
       });
-      return res.json();
-    } else {
-      const res = await fetch(`${API_URL}/progressoAulas`, {
+      return mapProgresso(raw);
+    } catch {
+      const raw = await apiRequest('/progresso-aula', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idUsuario,
           idAula,
-          dataConclusao: new Date().toISOString(),
-          status
-        })
+          ...payload,
+        }),
       });
-      return res.json();
+      return mapProgresso(raw);
     }
   }
 
   async emitirCertificado(idUsuario: number, idCurso: number): Promise<ICertificado> {
-    const resVerifica = await fetch(`${API_URL}/certificados?idUsuario=${idUsuario}&idCurso=${idCurso}`);
-    const certificados = await resVerifica.json();
-    if (certificados.length > 0) return certificados[0];
+    const certificados = (await apiList('/certificados')).map(mapCertificado);
+    const existente = certificados.find(
+      (item) => item.idUsuario === idUsuario && item.idCurso === idCurso,
+    );
+    if (existente) return existente;
 
-    const res = await fetch(`${API_URL}/certificados`, {
+    const raw = await apiRequest('/certificados', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idUsuario,
         idCurso,
-        codigoAutenticidade: `CERT-${Date.now().toString(36).toUpperCase()}`,
-        dataEmissao: new Date().toISOString()
-      })
+        codigoVerificacao: `CERT-${Date.now().toString(36).toUpperCase()}`,
+      }),
     });
-    return res.json();
+    return mapCertificado(raw);
   }
 }
 

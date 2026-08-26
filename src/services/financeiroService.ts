@@ -1,57 +1,47 @@
 import type { IPlano, IAssinatura, IPagamento } from '../types';
-
-const API_URL = 'http://localhost:3000';
+import { apiList, apiRequest } from '../lib/api';
+import { mapAssinatura, mapPagamento, mapPlano, toMetodoPagamento } from '../lib/mappers';
 
 export class FinanceiroService {
   async salvarPlano(nome: string, descricao: string, preco: number, duracaoMeses: number): Promise<IPlano> {
-    const res = await fetch(`${API_URL}/planos`, {
+    const raw = await apiRequest('/planos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, descricao, preco, duracaoMeses })
+      body: JSON.stringify({ nome, descricao, preco, duracaoMeses }),
     });
-    return res.json();
+    return mapPlano(raw);
   }
 
   async listarPlanos(): Promise<IPlano[]> {
-    const res = await fetch(`${API_URL}/planos`);
-    return res.json();
+    return (await apiList('/planos')).map(mapPlano);
   }
 
   async checkout(idUsuario: number, idPlano: number, metodoPagamento: 'PIX' | 'Cartão' | 'Boleto'): Promise<{ assinatura: IAssinatura, pagamento: IPagamento }> {
-    const resPlano = await fetch(`${API_URL}/planos/${idPlano}`);
-    if (!resPlano.ok) throw new Error('Plano inválido.');
-    const plano: IPlano = await resPlano.json();
+    const plano = mapPlano(await apiRequest(`/planos/${idPlano}`));
 
     const inicio = new Date();
     const fim = new Date(inicio);
     fim.setMonth(fim.getMonth() + plano.duracaoMeses);
 
-    // Save Assinatura
-    const resAssinatura = await fetch(`${API_URL}/assinaturas`, {
+    const assinatura = mapAssinatura(await apiRequest('/assinaturas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idUsuario,
         idPlano,
         dataInicio: inicio.toISOString(),
-        dataFim: fim.toISOString()
-      })
-    });
-    const assinatura: IAssinatura = await resAssinatura.json();
+        dataFim: fim.toISOString(),
+      }),
+    }));
 
-    // Save Pagamento
-    const resPagamento = await fetch(`${API_URL}/pagamentos`, {
+    const pagamento = mapPagamento(await apiRequest('/pagamentos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idAssinatura: assinatura.id,
         valorPago: plano.preco,
         dataPagamento: new Date().toISOString(),
-        metodoPagamento,
-        idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
-      })
-    });
-    const pagamento: IPagamento = await resPagamento.json();
+        metodoPagamento: toMetodoPagamento(metodoPagamento),
+        idTransacaoGateway: Date.now(),
+      }),
+    }));
 
     return { assinatura, pagamento };
   }

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDb } from '../hooks/useDb';
 import { getSession } from '../services/authService';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { FeedbackState } from '../components/FeedbackState';
 import { usuarioService } from '../services/usuarioService';
 import type { ICurso } from '../types';
-
-export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
+import { byId, formatPreco } from '../lib/utils';
 
 export const AlunoDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +24,11 @@ export const AlunoDashboard: React.FC = () => {
   // Estados locais
   const [selectedCurso, setSelectedCurso] = useState<ICurso | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'Cartão' | 'Boleto'>('PIX');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState<'todos' | 'meus' | 'disponiveis'>('todos');
+  const [confirming, setConfirming] = useState(false);
 
   // Utilitários de verificação
   const isMatriculado = (cursoId: number) => {
@@ -50,16 +54,31 @@ export const AlunoDashboard: React.FC = () => {
     return Math.round((concluidas / idAulas.length) * 100);
   };
 
-  const formatPreco = (valor: number) => {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const cursosVisiveis = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return dbState.cursos.filter((curso) => {
+      const matriculado = isMatriculado(curso.id);
+      if (filtro === 'meus' && !matriculado) return false;
+      if (filtro === 'disponiveis' && matriculado) return false;
+      if (!termo) return true;
+      return [curso.titulo, curso.descricao, curso.nivel]
+        .join(' ')
+        .toLowerCase()
+        .includes(termo);
+    });
+  }, [dbState.cursos, dbState.matriculas, busca, filtro, userId]);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message: msg, type });
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
   };
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
-  };
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   // Handlers
   const handleAssistirClick = (cursoId: number) => {
@@ -79,30 +98,14 @@ export const AlunoDashboard: React.FC = () => {
   };
 
   const handleConfirmarCompra = async () => {
-    if (!selectedCurso || !userId) return;
+    if (!selectedCurso || !userId || confirming) return;
 
     const preco = Number(selectedCurso.preco) || 0;
+    setConfirming(true);
 
     try {
-      // 1. Matrícula
       await usuarioService.matricular(userId, selectedCurso.id);
 
-      // 2. Pagamento
-      if (preco > 0) {
-        await fetch('http://localhost:3000/pagamentos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            idAssinatura: null,
-            valorPago: preco,
-            dataPagamento: new Date().toISOString(),
-            metodoPagamento: paymentMethod,
-            idTransacaoGateway: `TXN-${Date.now().toString(36).toUpperCase()}`
-          })
-        });
-      }
-
-      // Fecha modal
       const modalEl = document.getElementById('checkoutModal');
       if (modalEl) {
         const bootstrap = (window as any).bootstrap;
@@ -110,17 +113,18 @@ export const AlunoDashboard: React.FC = () => {
         modal?.hide();
       }
 
-      // Feedback
       showToast(
         preco > 0
-          ? `Compra realizada! ${formatPreco(preco)} via ${paymentMethod}`
-          : 'Inscrição confirmada!'
+          ? `Inscrição confirmada! ${formatPreco(preco)} via ${paymentMethod}.`
+          : 'Inscrição confirmada!',
       );
 
       setSelectedCurso(null);
       triggerRefresh();
-    } catch (e: any) {
-      showToast('Erro ao processar compra/matrícula.');
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Erro ao processar compra/matrícula.', 'error');
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -143,14 +147,48 @@ export const AlunoDashboard: React.FC = () => {
           </div>
         </header>
 
+        <div className="d-flex flex-column flex-md-row gap-3 mb-4">
+          <label className="visually-hidden" htmlFor="busca-cursos">Buscar cursos</label>
+          <input
+            id="busca-cursos"
+            type="search"
+            className="form-control"
+            placeholder="Buscar por título, nível ou descrição"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+          <div className="btn-group" role="group" aria-label="Filtrar cursos">
+            {([
+              ['todos', 'Todos'],
+              ['meus', 'Meus'],
+              ['disponiveis', 'Disponíveis'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`btn ${filtro === id ? 'btn-info' : 'btn-outline-secondary'}`}
+                aria-pressed={filtro === id}
+                onClick={() => setFiltro(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="row g-4">
-          {dbState.cursos.length === 0 ? (
-            <div className="col-12 text-center text-muted py-5">
-              <i className="bi bi-collection-play fs-1 d-block mb-3 opacity-50"></i>
-              <p>Nenhum curso disponível no momento.</p>
-            </div>
-          ) : (
-            dbState.cursos.map(curso => {
+          <FeedbackState
+            loading={dbState.loading}
+            error={dbState.error}
+            onRetry={triggerRefresh}
+            empty={!dbState.loading && !dbState.error && cursosVisiveis.length === 0}
+            emptyIcon="bi-collection-play"
+            emptyTitle={dbState.cursos.length === 0 ? 'Nenhum curso disponível' : 'Nenhum curso neste filtro'}
+            emptyMessage={dbState.cursos.length === 0
+              ? 'Quando o admin publicar cursos, eles aparecem aqui.'
+              : 'Tente outra busca ou filtro.'}
+          >
+            {cursosVisiveis.map(curso => {
               const matriculado = isMatriculado(curso.id);
               const progresso = matriculado ? getProgressoCurso(curso.id) : 0;
               const instrutor = byId(dbState.usuarios, curso.idInstrutor);
@@ -246,12 +284,12 @@ export const AlunoDashboard: React.FC = () => {
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
+          </FeedbackState>
         </div>
       </main>
 
-      <Footer />
+      <Footer isAdmin={userRole === 'admin'} />
 
       {/* Modal: Checkout */}
       <div className="modal fade" id="checkoutModal" tabIndex={-1} aria-hidden="true">
@@ -340,13 +378,21 @@ export const AlunoDashboard: React.FC = () => {
                 type="button"
                 onClick={handleConfirmarCompra}
                 className="btn btn-primary"
+                disabled={confirming}
+                aria-busy={confirming}
               >
-                <i className="bi bi-shield-check me-2"></i>
-                <span>
-                  {selectedCurso && Number(selectedCurso.preco) === 0
-                    ? 'Confirmar Inscrição'
-                    : `Pagar ${selectedCurso ? formatPreco(selectedCurso.preco) : ''}`}
-                </span>
+                {confirming ? (
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ) : (
+                  <>
+                    <i className="bi bi-shield-check me-2"></i>
+                    <span>
+                      {selectedCurso && Number(selectedCurso.preco) === 0
+                        ? 'Confirmar Inscrição'
+                        : `Pagar ${selectedCurso ? formatPreco(selectedCurso.preco) : ''}`}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -354,10 +400,13 @@ export const AlunoDashboard: React.FC = () => {
       </div>
 
       {/* Toast Feedback */}
-      {toastMessage && (
-        <div className="aluno-toast show">
-          <i className="bi bi-check-circle-fill me-2"></i>
-          {toastMessage}
+      {toast && (
+        <div
+          className={`aluno-toast show ${toast.type === 'error' ? 'is-error' : ''}`}
+          role={toast.type === 'error' ? 'alert' : 'status'}
+        >
+          <i className={`bi ${toast.type === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2`}></i>
+          {toast.message}
         </div>
       )}
     </>

@@ -71,8 +71,6 @@ export const Login: React.FC = () => {
     }
 
     setLoading(true);
-    // Simula atraso estético original
-    await new Promise(resolve => setTimeout(resolve, 600));
 
     const result = await login(loginEmail, loginSenha);
     setLoading(false);
@@ -82,8 +80,6 @@ export const Login: React.FC = () => {
       return;
     }
 
-    triggerAlert(`Bem-vindo, ${result.usuario.nomeCompleto}! Redirecionando...`, 'success');
-    await new Promise(resolve => setTimeout(resolve, 800));
     navigate(result.usuario.role === 'admin' ? '/admin' : '/aluno');
   };
 
@@ -104,8 +100,6 @@ export const Login: React.FC = () => {
     }
 
     setLoading(true);
-    // Simula atraso estético original
-    await new Promise(resolve => setTimeout(resolve, 700));
 
     const result = await cadastrarAluno(cadastroNome, cadastroEmail, cadastroSenha);
     setLoading(false);
@@ -115,8 +109,6 @@ export const Login: React.FC = () => {
       return;
     }
 
-    triggerAlert(`Conta criada! Bem-vindo, ${result.usuario.nomeCompleto}!`, 'success');
-    await new Promise(resolve => setTimeout(resolve, 800));
     navigate('/aluno');
   };
 
@@ -179,27 +171,31 @@ export const Login: React.FC = () => {
                 <div className="form-group-float">
                   <i className="bi bi-envelope field-icon"></i>
                   <input
+                    id="login-email"
                     type="email"
                     className="form-control login-input"
                     placeholder=" "
                     value={loginEmail}
                     onChange={e => setLoginEmail(e.target.value)}
+                    autoComplete="email"
                     required
                   />
-                  <label className="form-label login-label">E-mail</label>
+                  <label htmlFor="login-email" className="form-label login-label">E-mail</label>
                 </div>
 
                 <div className="form-group-float">
                   <i className="bi bi-lock field-icon"></i>
                   <input
+                    id="login-senha"
                     type={showSenha ? 'text' : 'password'}
                     className="form-control login-input"
                     placeholder=" "
                     value={loginSenha}
                     onChange={e => setLoginSenha(e.target.value)}
+                    autoComplete="current-password"
                     required
                   />
-                  <label className="form-label login-label">Senha</label>
+                  <label htmlFor="login-senha" className="form-label login-label">Senha</label>
                   <button
                     type="button"
                     className="btn-toggle-pass"
@@ -210,7 +206,7 @@ export const Login: React.FC = () => {
                   </button>
                 </div>
 
-                <button type="submit" disabled={loading} className="btn btn-primary w-100 login-submit">
+                <button type="submit" disabled={loading} className="btn btn-primary w-100 login-submit" aria-busy={loading}>
                   {!loading && (
                     <span className="btn-label">
                       <i className="bi bi-box-arrow-in-right me-2"></i>Entrar
@@ -249,40 +245,46 @@ export const Login: React.FC = () => {
                 <div className="form-group-float">
                   <i className="bi bi-person field-icon"></i>
                   <input
+                    id="cadastro-nome"
                     type="text"
                     className="form-control login-input"
                     placeholder=" "
                     value={cadastroNome}
                     onChange={e => setCadastroNome(e.target.value)}
+                    autoComplete="name"
                     required
                   />
-                  <label className="form-label login-label">Nome completo</label>
+                  <label htmlFor="cadastro-nome" className="form-label login-label">Nome completo</label>
                 </div>
 
                 <div className="form-group-float">
                   <i className="bi bi-envelope field-icon"></i>
                   <input
+                    id="cadastro-email"
                     type="email"
                     className="form-control login-input"
                     placeholder=" "
                     value={cadastroEmail}
                     onChange={e => setCadastroEmail(e.target.value)}
+                    autoComplete="email"
                     required
                   />
-                  <label className="form-label login-label">E-mail</label>
+                  <label htmlFor="cadastro-email" className="form-label login-label">E-mail</label>
                 </div>
 
                 <div className="form-group-float">
                   <i className="bi bi-lock field-icon"></i>
                   <input
+                    id="cadastro-senha"
                     type={showSenha ? 'text' : 'password'}
                     className="form-control login-input"
                     placeholder=" "
                     value={cadastroSenha}
                     onChange={e => setCadastroSenha(e.target.value)}
+                    autoComplete="new-password"
                     required
                   />
-                  <label className="form-label login-label">Senha (mín. 6 caracteres)</label>
+                  <label htmlFor="cadastro-senha" className="form-label login-label">Senha (mín. 6 caracteres)</label>
                   <button
                     type="button"
                     className="btn-toggle-pass"
@@ -293,7 +295,7 @@ export const Login: React.FC = () => {
                   </button>
                 </div>
 
-                <button type="submit" disabled={loading} className="btn btn-primary w-100 login-submit">
+                <button type="submit" disabled={loading} className="btn btn-primary w-100 login-submit" aria-busy={loading}>
                   {!loading && (
                     <span className="btn-label">
                       <i className="bi bi-person-check me-2"></i>Criar conta

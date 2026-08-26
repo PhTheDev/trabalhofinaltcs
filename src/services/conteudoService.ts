@@ -1,15 +1,14 @@
 import type { IModulo, IAula, ICurso } from '../types';
-
-const API_URL = 'http://localhost:3000';
+import { apiList, apiRequest } from '../lib/api';
+import { mapAula, mapCurso, mapModulo } from '../lib/mappers';
 
 export class ConteudoService {
   async salvarModulo(idCurso: number, titulo: string, ordem: number): Promise<IModulo> {
-    const res = await fetch(`${API_URL}/modulos`, {
+    const raw = await apiRequest('/modulos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idCurso, titulo, ordem })
+      body: JSON.stringify({ idCurso, titulo, ordem: String(ordem) }),
     });
-    return res.json();
+    return mapModulo(raw);
   }
 
   async salvarAula(
@@ -20,39 +19,38 @@ export class ConteudoService {
     duracaoMinutos: number,
     ordem: number
   ): Promise<IAula> {
-    const res = await fetch(`${API_URL}/aulas`, {
+    const raw = await apiRequest('/aulas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         idModulo,
         titulo,
         tipoConteudo,
         urlConteudo,
         duracaoMinutos,
-        ordem
-      })
+        ordem: String(ordem),
+      }),
     });
-    return res.json();
+    return mapAula(raw);
   }
 
   async listarModulos(): Promise<IModulo[]> {
-    const res = await fetch(`${API_URL}/modulos?_sort=ordem`);
-    return res.json();
+    return (await apiList('/modulos'))
+      .map(mapModulo)
+      .sort((a, b) => a.ordem - b.ordem);
   }
 
   async listarAulas(idModulo?: number): Promise<IAula[]> {
-    const url = idModulo 
-      ? `${API_URL}/aulas?idModulo=${idModulo}&_sort=ordem`
-      : `${API_URL}/aulas?_sort=ordem`;
-    const res = await fetch(url);
-    return res.json();
+    const aulas = (await apiList('/aulas'))
+      .map(mapAula)
+      .sort((a, b) => a.ordem - b.ordem);
+    if (idModulo == null) return aulas;
+    return aulas.filter((aula) => aula.idModulo === idModulo);
   }
 
   async listarConteudo() {
     const modulos = await this.listarModulos();
     const aulas = await this.listarAulas();
-    const cursosRes = await fetch(`${API_URL}/cursos`);
-    const cursos: ICurso[] = await cursosRes.json();
+    const cursos = (await apiList('/cursos')).map(mapCurso);
 
     return modulos.map(modulo => ({
       modulo,

@@ -7,12 +7,12 @@ import { AcademicoService } from '../services/academicoService';
 import { ConteudoService } from '../services/conteudoService';
 import { usuarioService } from '../services/usuarioService';
 import { financeiroService } from '../services/financeiroService';
-export const byId = <T extends { id: number }>(arr: T[], id: number | string): T | undefined => arr.find(i => String(i.id) === String(id));
-export const formatDate = (iso: string) => new Date(iso).toLocaleString('pt-BR');
 import type { ICertificado } from '../types';
+import { byId } from '../lib/utils';
 
 const acadSvc = new AcademicoService();
 const contSvc = new ConteudoService();
+const formatDate = (iso: string) => new Date(iso).toLocaleString('pt-BR');
 
 export const AdminDashboard: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -309,6 +309,21 @@ export const AdminDashboard: React.FC = () => {
       <Navbar userName={userName} role={userRole} />
 
       <main className="container-fluid px-4 py-4">
+        {dbState.loading && (
+          <div className="alert alert-info d-flex align-items-center gap-2" role="status">
+            <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Sincronizando dados com o backend...
+          </div>
+        )}
+        {dbState.error && (
+          <div className="alert alert-warning d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2" role="alert">
+            <span>{dbState.error}</span>
+            <button type="button" className="btn btn-sm btn-outline-dark" onClick={triggerRefresh}>
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
         {/* Toast / Alerta de Erro */}
         {errorMessage && (
           <div className="alert alert-warning alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-4" style={{ zIndex: 1100 }} role="alert">
@@ -325,7 +340,7 @@ export const AdminDashboard: React.FC = () => {
               </h1>
               <p className="text-secondary mb-0 small">Gerencie categorias, cursos, conteúdo, usuários e financeiro.</p>
               <span className="admin-stat-chip mt-2" style={{ fontSize: '0.75rem', opacity: 0.75 }}>
-                <i className="bi bi-hdd me-1"></i>Dados salvos automaticamente no localStorage
+                <i className="bi bi-hdd-network me-1"></i>Dados em tempo real no backend Nest + PostgreSQL
               </span>
             </div>
             <div className="d-flex flex-column gap-2 align-items-end">

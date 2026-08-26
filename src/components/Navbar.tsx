@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ userName, role }) => {
             <span>{userName}</span>
           </span>
 
-          <button onClick={handleLogout} className="btn-logout" title="Sair">
+          <button onClick={handleLogout} className="btn-logout" type="button" title="Sair" aria-label="Sair">
             <i className="bi bi-box-arrow-right"></i>
           </button>
         </div>

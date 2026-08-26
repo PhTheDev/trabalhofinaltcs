@@ -1,66 +1,58 @@
 import type { ICategoria, ICurso, ITrilha, ITrilhaCurso } from '../types';
-
-const API_URL = 'http://localhost:3000';
+import { apiList, apiRequest } from '../lib/api';
+import { mapCategoria, mapCurso, mapTrilhaCurso, toCursoPayload } from '../lib/mappers';
 
 export class AcademicoService {
   async salvarCategoria(nome: string, descricao: string): Promise<ICategoria> {
-    const resVerifica = await fetch(`${API_URL}/categorias?nome=${encodeURIComponent(nome)}`);
-    const categorias = await resVerifica.json();
-    if (categorias.length > 0) {
+    const categorias = (await apiList('/categorias')).map(mapCategoria);
+    if (categorias.some((item) => item.nome.toLowerCase() === nome.toLowerCase())) {
       throw new Error('Categoria já existe.');
     }
-    const res = await fetch(`${API_URL}/categorias`, {
+    return apiRequest('/categorias', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, descricao })
+      body: JSON.stringify({ nome, descricao }),
     });
-    return res.json();
   }
 
   async salvarCurso(cursoData: Omit<ICurso, 'id'>): Promise<ICurso> {
-    const res = await fetch(`${API_URL}/cursos`, {
+    const raw = await apiRequest('/cursos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cursoData)
+      body: JSON.stringify(toCursoPayload(cursoData)),
     });
-    return res.json();
+    return mapCurso(raw);
   }
 
   async listarCursosPorCategoria(categoriaId: number | string): Promise<ICurso[]> {
-    const res = await fetch(`${API_URL}/cursos?idCategoria=${categoriaId}`);
-    return res.json();
+    const cursos = (await apiList('/cursos')).map(mapCurso);
+    return cursos.filter((curso) => String(curso.idCategoria) === String(categoriaId));
   }
 
   async listarCursos(): Promise<ICurso[]> {
-    const res = await fetch(`${API_URL}/cursos`);
-    return res.json();
+    return (await apiList('/cursos')).map(mapCurso);
   }
 
   async listarCategorias(): Promise<ICategoria[]> {
-    const res = await fetch(`${API_URL}/categorias`);
-    return res.json();
+    return (await apiList('/categorias')).map(mapCategoria);
   }
 
   async salvarTrilha(titulo: string, descricao: string, idCategoria: number): Promise<ITrilha> {
-    const res = await fetch(`${API_URL}/trilhas`, {
+    return apiRequest('/trilhas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titulo, descricao, idCategoria })
+      body: JSON.stringify({ titulo, descricao, idCategoria }),
     });
-    return res.json();
   }
 
   async associarCursoTrilha(idTrilha: number, idCurso: number, ordem: number): Promise<ITrilhaCurso> {
-    const res = await fetch(`${API_URL}/trilhasCursos`, {
+    const raw = await apiRequest('/trilha-curso', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idTrilha, idCurso, ordem })
+      body: JSON.stringify({ idTrilha, idCurso, ordem: String(ordem) }),
     });
-    return res.json();
+    return mapTrilhaCurso(raw);
   }
 
   async listarTrilhaCursos(): Promise<ITrilhaCurso[]> {
-    const res = await fetch(`${API_URL}/trilhasCursos?_sort=ordem`);
-    return res.json();
+    return (await apiList('/trilha-curso'))
+      .map(mapTrilhaCurso)
+      .sort((a, b) => a.ordem - b.ordem);
   }
 }
